@@ -4,7 +4,6 @@
 #include <stdlib.h> // for malloc and free
 #include <unistd.h> // for sleep
 
-#define MAC_ITEM 5
 /*
  In multi-threaded programs, it is often useful for a thread to wait for
     some condition to become true before proceeding. The simple approach,
