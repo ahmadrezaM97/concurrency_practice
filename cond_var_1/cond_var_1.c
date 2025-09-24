@@ -1,9 +1,9 @@
+#include "cond_var_1.h"
 #include <pthread.h> // for pthreads and mutex
 #include <stdbool.h>
 #include <stdio.h>  // for printf and NULL
 #include <stdlib.h> // for malloc and free
 #include <unistd.h> // for sleep
-
 /*
  In multi-threaded programs, it is often useful for a thread to wait for
     some condition to become true before proceeding. The simple approach,
@@ -14,10 +14,6 @@
 pthread_cond_t cond_var = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 int number_of_works_to_do = 0;
-
-typedef struct {
-    int thread_id;
-} Options;
 
 void *worker(void *ops) {
     Options *o = (Options *)ops;

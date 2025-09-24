@@ -11,9 +11,9 @@ typedef struct {
     pthread_mutex_t lock;
     pthread_cond_t has_data;
     pthread_cond_t is_full;
-} Channel;
+} queue_buffer;
 
-void Send(Channel *c, int v) {
+void queue_buffer_send(queue_buffer *c, int v) {
     pthread_mutex_lock(&c->lock);
 
     while (c->len == c->cap) {
@@ -26,7 +26,7 @@ void Send(Channel *c, int v) {
     pthread_mutex_unlock(&c->lock);
 }
 
-int Recv(Channel *c) {
+int queue_buffer_recv(queue_buffer *c) {
     pthread_mutex_lock(&c->lock);
 
     while (c->len == 0) {
@@ -40,8 +40,8 @@ int Recv(Channel *c) {
     return v;
 }
 
-Channel *make_channel(int cap) {
-    Channel *c = (Channel *)malloc(sizeof(Channel));
+queue_buffer *make_queue_buffer(int cap) {
+    queue_buffer *c = (queue_buffer *)malloc(sizeof(queue_buffer));
     c->cap = cap;
     c->len = 0;
     pthread_mutex_init(&c->lock, NULL);
@@ -52,33 +52,33 @@ Channel *make_channel(int cap) {
 
 typedef struct {
     int producer_id;
-    Channel *c;
+    queue_buffer *c;
 } producerOpts;
 
 typedef struct {
     int consumer_id;
-    Channel *c;
+    queue_buffer *c;
 } consumerOpts;
 
 void *producer(void *ops) {
     producerOpts *opts = (producerOpts *)ops;
-    Channel *ch = opts->c;
+    queue_buffer *ch = opts->c;
     int id = opts->producer_id;
 
     printf("[%d] Start sending ... %d\n", id, id);
-    Send(ch, id);
+    queue_buffer_send(ch, id);
     printf("[%d] Sending is done.\n", id);
 
     return NULL;
 }
 void *consumer(void *ops) {
     consumerOpts *opts = (consumerOpts *)ops;
-    Channel *ch = opts->c;
+    queue_buffer *ch = opts->c;
     int id = opts->consumer_id;
 
     printf("[%d] Start Recving id:...\n", id);
     sleep(2);
-    int v = Recv(ch);
+    int v = queue_buffer_recv(ch);
     printf("[%d] Recving id is done %d \n", id, v);
 
     return NULL;
@@ -88,9 +88,8 @@ const int NUM_PRODUCERS = 3;
 const int NUM_CONSUMERS = 3;
 
 int run_cond_var_2(void) {
-
     pthread_t consumerThreads[NUM_CONSUMERS], producerThreads[NUM_PRODUCERS];
-    Channel *c = make_channel(1);
+    queue_buffer *c = make_queue_buffer(1);
 
     for (int i = 0; i < NUM_PRODUCERS; i++) {
         producerOpts *co = (producerOpts *)malloc(sizeof(producerOpts));

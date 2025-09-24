@@ -16,9 +16,9 @@ typedef struct {
     pthread_mutex_t lock;
     pthread_cond_t ready_to_write;
     pthread_cond_t ready_to_read;
-} Channel;
+} queue_buffer;
 
-void Send(Channel *c, int v) {
+void queue_buffer_send(queue_buffer *c, int v) {
     pthread_mutex_lock(&c->lock);
     while (c->number_of_waiting_read == 0 && !c->closed) {
         pthread_cond_wait(&c->ready_to_write, &c->lock);
@@ -37,7 +37,7 @@ void Send(Channel *c, int v) {
     pthread_mutex_unlock(&c->lock);
 }
 
-int Recv(Channel *c) {
+int queue_buffer_recv(queue_buffer *c) {
     pthread_mutex_lock(&c->lock);
 
     c->number_of_waiting_read++;
@@ -58,7 +58,7 @@ int Recv(Channel *c) {
     return v;
 }
 
-void close_channel(Channel *c) {
+void close_channel(queue_buffer *c) {
     pthread_mutex_lock(&c->lock);
     c->closed = true;
     pthread_cond_broadcast(&c->ready_to_read);
@@ -66,14 +66,14 @@ void close_channel(Channel *c) {
     pthread_mutex_unlock(&c->lock);
 }
 
-bool is_channel_closed(Channel *c) {
+bool is_channel_closed(queue_buffer *c) {
     pthread_mutex_lock(&c->lock);
     bool closed = c->closed;
     pthread_mutex_unlock(&c->lock);
     return closed;
 }
-Channel *make_channel(int cap) {
-    Channel *c = (Channel *)malloc(sizeof(Channel));
+queue_buffer *make_queue_buffer(int cap) {
+    queue_buffer *c = (queue_buffer *)malloc(sizeof(queue_buffer));
     c->closed = false;
     c->has_data = false;
     c->number_of_waiting_read = 0;
@@ -85,23 +85,23 @@ Channel *make_channel(int cap) {
 
 typedef struct {
     int producer_id;
-    Channel *c;
+    queue_buffer *c;
 } producerOpts;
 
 typedef struct {
     int consumer_id;
-    Channel *c;
+    queue_buffer *c;
 } consumerOpts;
 
 void *producer(void *ops) {
     producerOpts *opts = (producerOpts *)ops;
-    Channel *ch = opts->c;
+    queue_buffer *ch = opts->c;
     int id = opts->producer_id;
 
     for (int i = 0; i < 10; i++) {
         sleep(1);
         printf("[%d] is start sending %d.\n", id, i);
-        Send(ch, i);
+        queue_buffer_send(ch, i);
         printf("[%d] Sending is done.\n", id);
     }
 
@@ -109,19 +109,19 @@ void *producer(void *ops) {
 }
 void *consumer(void *ops) {
     consumerOpts *opts = (consumerOpts *)ops;
-    Channel *ch = opts->c;
+    queue_buffer *ch = opts->c;
     int id = opts->consumer_id;
 
     while (!is_channel_closed(ch)) {
         printf("[%d] Start Recving id:...\n", id);
-        int v = Recv(ch);
+        int v = queue_buffer_recv(ch);
         printf("[%d] Recving is done %d \n", id, v);
     }
     return NULL;
 }
 
 void *closer(void *opts) {
-    Channel *c = (Channel *)opts;
+    queue_buffer *c = (queue_buffer *)opts;
     sleep(5);
     close_channel(c);
     printf("channel is closed");
@@ -131,10 +131,10 @@ void *closer(void *opts) {
 const int NUM_PRODUCERS = 1;
 const int NUM_CONSUMERS = 3;
 
-int run_cond_var_2(void) {
+int run_rundevo_pattern(void) {
 
     pthread_t consumerThreads[NUM_CONSUMERS], producerThreads[NUM_PRODUCERS];
-    Channel *c = make_channel(0);
+    queue_buffer *c = make_queue_buffer(0);
 
     for (int i = 0; i < NUM_PRODUCERS; i++) {
         producerOpts *co = (producerOpts *)malloc(sizeof(producerOpts));

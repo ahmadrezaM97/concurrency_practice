@@ -1,0 +1,3 @@
+BasedOnStyle: LLVM # or Google, Mozilla, WebKit, etc.
+AllowShortFunctionsOnASingleLine: None
+ColumnLimit: 120
