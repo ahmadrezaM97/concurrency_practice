@@ -1,0 +1,102 @@
+Baseline is the expectation for a just-senior engineer, development are the expectations for senior engineers. 
+
+Tech
+Baseline
+
+Autonomously builds and deploys new features or bug fixes
+
+Writes well-structured and readable code which follows our conventions
+
+Autonomously deploys code changes
+
+Performs post-deployment monitoring to check for validity, errors, and changes to global business KPIs
+
+Example: uses Pivot to gain insights (e.g. if a deploy affected some basic KPIs)
+
+Adds tests for new or existing features following existing patterns
+
+Performs simple investigations into issues in area of expertise
+
+Example: debugs code by following stack traces and using log messages
+
+Reviews code using our guidelines and against task requirements
+
+Breaks down complex tasks down into simpler, individually deployable changes
+
+Comfortable testing complex code, introduces new test patterns
+
+Gathers data from multiple sources (e.g. logs, raw data, metrics) and presents research clearly, avoiding all assumptions
+
+Performs post-deployment monitoring to check for errors, changes to global business KPIs, and technical KPIs (e.g. increase in bid time, memory usage, or Kafka throughput)
+
+Development target:
+
+Produces and implements designs spanning a single service (e.g. introduced a new service for tracking spend)
+
+Strives to find the simplest solution to a problem
+
+Does not overcomplicate / over engineer solutions 
+
+Considers scalability and maintainability when writing and reviewing code
+
+Example: does this perform at 2x the scale or introduce something we will need to refactor soon?
+
+Instruments code where necessary and makes those metrics available through new or existing dashboards. Thinks carefully about potential incidents or error cases and adds appropriate alerting
+
+Investigates issues across multiple systems using prior knowledge of services, technical KPI observations, and external impacts
+
+Considers infrastructure-wide implications when writing and reviewing code
+
+Example: does this cause an increase in Kafka throughput that consumers will struggle with?
+
+Achieves Technical Level 1 also into areas of DATA and COR
+
+Team
+Baseline
+
+Effectively works as a member of a project team (contributing towards task discussions, retrospectives, and presentations)
+
+Takes ownership of changes they introduced (post-deployment questions and issues, documentation)
+
+Helps team members with getting to know new parts of the system, investigating issue and finding optimal solutions
+
+Gives structured, constructive and actionable feedback to colleagues when asked
+
+Reaches out to other departments for information and assistance (e.g. for partner integrations)
+
+Is able to communicate ideas and technical concepts within the team effectively (so that others understand, are aware of shortcoming, able to verify)
+
+Development Target
+
+Involved in the recruitment process by performing interviews and giving feedback on the candidates performance
+
+Supports other engineers by mentoring them (support, knowledge sharing)
+
+Effectively leads project teams, involving organisation of tasks, scope management, and communication with the product team.
+
+Product & Process
+Baseline
+
+Actively flags own tasks which are blocked by raising them with the team (e.g. waiting for a review for over a week, struggling to find a solution, or waiting for information)
+
+Asks relevant team members to help determine the impacts of approaches to a feature, bug or on-call issue
+
+Able to judge if the effort of their task exceeds the allotted time complexity.
+
+Creates tasks for bugs fixes and smaller implementation improvements containing a description of the problem
+
+Actively participates in the retrospective by providing feedback to the process
+
+Cooperates with product to write technical concepts for individual tasks of their area of expertise
+
+Development Target
+
+Can accurately estimate effort and impact of tasks the defined to correctly prioritise them
+
+Writes sufficiently detailed task descriptions so other team members can pick them up and flags tickets for which this is not the case
+
+Identifies problems in the development or product process and proposes solutions
+
+Asks relevant stakeholders to clarify business impact of the tickets they are working on
+
+ 

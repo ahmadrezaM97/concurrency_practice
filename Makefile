@@ -3,8 +3,9 @@ CFLAGS ?= -std=c11 -O2 -Wall -Wextra -Wpedantic
 LDLIBS ?= -pthread
 
 # Usage examples:
+#   make build DIR=subdir # builds subdir/main.c into subdir/main
 #   make run DIR=subdir   # builds and runs subdir/main
-#   make list DIR=subdir  # shows sources used in subdir
+#   make clean            # cleans all built files
 #   make examples         # lists available example subdirectories
 
 DIR ?=
@@ -12,61 +13,36 @@ DIR ?=
 # Discover example subdirectories (those that contain a main.c)
 EXAMPLES := $(patsubst %/,%,$(sort $(dir $(wildcard */main.c))))
 
-ifeq ($(strip $(DIR)),)
+.PHONY: all build run clean examples
 
-.PHONY: all run clean list examples
+# Build command - simplified
+build:
+ifeq ($(strip $(DIR)),)
+	@echo "Error: Please specify a directory"
+	@echo "Usage: make build DIR=<directory>"
+	@echo "Available examples: $(EXAMPLES)"
+	@false
+else
+	@if [ ! -f "$(DIR)/main.c" ]; then \
+		echo "Error: $(DIR)/main.c not found"; \
+		exit 1; \
+	fi
+	$(CC) $(CFLAGS) $(wildcard $(DIR)/*.c) -o $(DIR)/main $(LDLIBS)
+	@echo "Built: $(DIR)/main"
+endif
+
+run: build
+	./$(DIR)/main
 
 all:
-	@echo "Please choose an example directory:" && \
-	echo "  make run DIR=<one of: $(EXAMPLES)>" && \
-	false
-
-run: all
-
-list: examples
+	@echo "Available examples: $(EXAMPLES)"
+	@echo "Usage: make build DIR=<directory>"
 
 examples:
-	@echo "Available examples:" && \
-	for d in $(EXAMPLES); do echo " - $$d"; done
+	@echo "Available examples:"
+	@for d in $(EXAMPLES); do echo " - $$d"; done
 
 clean:
-	@for d in $(EXAMPLES); do $(MAKE) -s DIR=$$d clean || true; done
-
-else
-
-SRC_MAIN := $(DIR)/main.c
-BIN := $(DIR)/main
-
-ifeq ($(wildcard $(SRC_MAIN)),)
-$(error Source file '$(SRC_MAIN)' not found. Set DIR=<valid-subdir>.)
-endif
-
-# All C sources in subdir
-ALL_SRCS := $(wildcard $(DIR)/*.c)
-MAIN_SRCS := $(filter-out $(SRC_MAIN),$(shell grep -l -E '^[[:space:]]*int[[:space:]]+main\b' $(ALL_SRCS) 2>/dev/null))
-EXTRA_SRCS := $(filter-out $(SRC_MAIN) $(MAIN_SRCS),$(ALL_SRCS))
-SRCS := $(SRC_MAIN) $(EXTRA_SRCS)
-
-OBJS := $(SRCS:.c=.o)
-
-.PHONY: all run clean list
-
-all: $(BIN)
-
-$(BIN): $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
-
-$(DIR)/%.o: $(DIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-run: $(BIN)
-	./$(BIN)
-
-list:
-	@echo "Building: $(BIN)"
-	@echo "Sources: $(SRCS)"
-
-clean:
-	rm -f $(BIN) $(OBJS)
-
-endif
+	@find . -type f -name 'main' -path '*/main' -delete
+	@find . -type f -name '*.o' -delete
+	@echo "Cleaned all binaries and object files"

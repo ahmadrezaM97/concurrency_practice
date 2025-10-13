@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simple_linux
+
+    # Keep the container running but do nothing so you can attach a shell later.
+    entrypoint: ["/bin/bash", "-c", "while sleep 3600; do :; done"]
+
+    # Allocate a pseudo-TTY and keep STDIN open so `docker compose exec` provides an interactive shell.
+    tty: true
+    stdin_open: true
+
+    # Expose port 8080 on the host and map it to port 8080 in the container.
+    ports:
+      - "8080:8080"

@@ -1,101 +1,106 @@
 
+#include <errno.h>
 #include <pthread.h> // for pthreads and mutex
+#include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>  // for printf and NULL
 #include <stdlib.h> // for malloc and free
 #include <unistd.h> // for sleep
 
-// TODO: change cond variable with semaphore + fix close channel 
-// maybe a simpler version of rundevo pattern 
+// TODO: writing rundevo pattern wasn't easy, I need to work on it
 typedef struct {
     int data;
     bool has_data;
-    bool closed;
-    int number_of_waiting_read;
+    pthread_cond_t *can_send;
+    pthread_cond_t *can_recv;
+    pthread_mutex_t *lock;
+} Chan;
 
-    pthread_mutex_t lock;
-    pthread_cond_t ready_to_write;
-    pthread_cond_t ready_to_read;
-} queue_buffer;
+errno_t chan_init(Chan *c) {
+    c->data = -1;
+    c->has_data = false;
 
-void queue_buffer_send(queue_buffer *c, int v) {
-    pthread_mutex_lock(&c->lock);
-    while (c->number_of_waiting_read == 0 && !c->closed) {
-        pthread_cond_wait(&c->ready_to_write, &c->lock);
+    c->is_data_ready = new_named_semaphore("is_full_sem", 0);
+    if (c->is_data_ready == NULL) {
+        return -1;
     }
-    if (c->closed) {
-        printf("Channel is closed. Cannot send data.\n");
-        pthread_mutex_unlock(&c->lock);
-        return;
+    c->reader_ack = new_named_semaphore("is_empty_sem", 0);
+    if (c->reader_ack == NULL) {
+        return -1;
     }
+    pthread_mutex_init(&c->lock, NULL);
+    return 0;
+}
+
+errno_t chan_destroy(Chan *c) {
+    if (sem_close(c->is_data_ready) == -1) {
+        perror("sem_close is_full_sem");
+        return -1;
+    }
+    if (sem_unlink("is_full_sem") == -1) {
+        perror("sem_unlink is_full_sem");
+        return -1;
+    }
+
+    if (sem_close(c->reader_ack) == -1) {
+        perror("sem_close is_empty_sem");
+        return -1;
+    }
+    if (sem_unlink("is_empty_sem") == -1) {
+        perror("sem_unlink is_empty_sem");
+        return -1;
+    }
+
+    pthread_mutex_destroy(&c->lock);
+    return 0;
+}
+
+void chan_send(Chan *c, int v) {
+    pthread_mutex_lock(c->lock);
+    while (c->has_data) {
+        pthread_cond_wait(c->can_send, c->lock);
+    }
+
     c->data = v;
     c->has_data = true;
-    pthread_cond_signal(&c->ready_to_read);
-    while (!c->closed && c->has_data) {
-        pthread_cond_wait(&c->ready_to_write, &c->lock);
-    }
-    pthread_mutex_unlock(&c->lock);
+    pthread_cond_signal(c->can_recv);
+
+    pthread_mutex_unlock(c->lock);
+
+
 }
 
-int queue_buffer_recv(queue_buffer *c) {
-    pthread_mutex_lock(&c->lock);
+int chan_recv(Chan *c) {
+    pthread_mutex_lock(c->lock);
 
-    c->number_of_waiting_read++;
-    pthread_cond_signal(&c->ready_to_write);
-    while (!c->has_data && !c->closed) {
-        pthread_cond_wait(&c->ready_to_read, &c->lock);
+    while (!c->has_data) {
+        pthread_cond_wait(c->can_recv, c->lock);
     }
-    c->number_of_waiting_read--;
-    if (c->closed) {
-        printf("Channel is closed. Cannot receive data.\n");
-        pthread_mutex_unlock(&c->lock);
-        return -1; // or some other error value
-    }
+
     int v = c->data;
+    c->data = -1;
     c->has_data = false;
-    pthread_cond_signal(&c->ready_to_write);
-    pthread_mutex_unlock(&c->lock);
+
+    pthread_cond_signal(c->can_send);
+
+    pthread_mutex_unlock(c->lock);
+
     return v;
-}
-
-void close_channel(queue_buffer *c) {
-    pthread_mutex_lock(&c->lock);
-    c->closed = true;
-    pthread_cond_broadcast(&c->ready_to_read);
-    pthread_cond_broadcast(&c->ready_to_write);
-    pthread_mutex_unlock(&c->lock);
-}
-
-bool is_channel_closed(queue_buffer *c) {
-    pthread_mutex_lock(&c->lock);
-    bool closed = c->closed;
-    pthread_mutex_unlock(&c->lock);
-    return closed;
-}
-queue_buffer *make_queue_buffer(int cap) {
-    queue_buffer *c = (queue_buffer *)malloc(sizeof(queue_buffer));
-    c->closed = false;
-    c->has_data = false;
-    c->number_of_waiting_read = 0;
-    pthread_mutex_init(&c->lock, NULL);
-    pthread_cond_init(&c->ready_to_write, NULL);
-    pthread_cond_init(&c->ready_to_read, NULL);
-    return c;
 }
 
 typedef struct {
     int producer_id;
-    queue_buffer *c;
+    Chan *c;
 } producerOpts;
 
 typedef struct {
     int consumer_id;
-    queue_buffer *c;
+    Chan *c;
 } consumerOpts;
 
 void *producer(void *ops) {
     producerOpts *opts = (producerOpts *)ops;
-    queue_buffer *ch = opts->c;
+    Chan *ch = opts->c;
     int id = opts->producer_id;
 
     for (int i = 0; i < 10; i++) {
@@ -109,7 +114,7 @@ void *producer(void *ops) {
 }
 void *consumer(void *ops) {
     consumerOpts *opts = (consumerOpts *)ops;
-    queue_buffer *ch = opts->c;
+    Chan *ch = opts->c;
     int id = opts->consumer_id;
 
     while (!is_channel_closed(ch)) {
@@ -120,21 +125,13 @@ void *consumer(void *ops) {
     return NULL;
 }
 
-void *closer(void *opts) {
-    queue_buffer *c = (queue_buffer *)opts;
-    sleep(5);
-    close_channel(c);
-    printf("channel is closed");
-    return NULL;
-}
-
-const int NUM_PRODUCERS = 1;
-const int NUM_CONSUMERS = 3;
+#define NUM_PRODUCERS = 1
+#define NUM_CONSUMERS = 3
 
 int run_rundevo_pattern(void) {
 
     pthread_t consumerThreads[NUM_CONSUMERS], producerThreads[NUM_PRODUCERS];
-    queue_buffer *c = make_queue_buffer(0);
+    Chan *c = make_queue_buffer(0);
 
     for (int i = 0; i < NUM_PRODUCERS; i++) {
         producerOpts *co = (producerOpts *)malloc(sizeof(producerOpts));
